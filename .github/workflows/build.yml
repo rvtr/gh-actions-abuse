@@ -1,0 +1,54 @@
+name: Make TAD from SRL
+
+on:
+  push:
+    branches: ["*"]
+    paths-ignore:
+      - 'README.md'
+  pull_request:
+    branches: ["*"]
+    paths-ignore:
+      - 'README.md'
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    name: Devsign SRL and build a TAD
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup environment
+        run: git config --global safe.directory '*'
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Clone ntool
+        uses: GuillaumeFalourd/clone-github-repo-action@v2.1
+        with:
+          depth: 1
+          owner: 'xprism1'
+          repository: 'ntool'
+      - name: Devsign TwlNandTool
+        run: |
+          cp file.srl ntool
+          pip install pycryptodome
+          python ntool/ntool.py srl_retail2dev ntool/file.srl --out ntool/file.dev.srl
+      - name: Make a devsigned TAD
+        run: |
+          curl https://cdn.randommeaninglesscharacters.com/tools/maketad/maketad.zip -o maketad.zip
+          7z e maketad.zip
+          cp ntool/file.dev.srl .
+          .\maketad-20090604.exe file.dev.srl -s -o file.dev.tad
+      - name: Upload devsigned TAD
+        uses: actions/upload-artifact@v4.3.6
+        with:
+          path: "file.dev.tad"
+          name: SRL-Tad
+      - name: Upload devsigned SRL
+        uses: actions/upload-artifact@v4.3.6
+        with:
+          path: "ntool/file.dev.srl"
+          name: SRL-Dev
